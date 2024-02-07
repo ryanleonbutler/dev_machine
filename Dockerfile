@@ -10,6 +10,7 @@ RUN apk update && \
     rm -f /tmp/* /etc/apk/cache/*;
 
 RUN apk add --no-cache git && \
+    apk add --no-cache openssh && \
     apk add --no-cache unzip && \
     apk add --no-cache curl && \
     apk add --no-cache wget && \
@@ -45,6 +46,7 @@ RUN apk add --no-cache --update go && \
 COPY ./dotfiles ./.config
 COPY ./dotfiles/.gitconfig .
 COPY ./dotfiles/.gittemplate .
+COPY ./shared_ssh_keys .
 
 RUN mkdir -p ./.config/fish/completions && \
      mkdir -p ./.config/fish/conf.d && \

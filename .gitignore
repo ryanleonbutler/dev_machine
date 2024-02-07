@@ -1,0 +1,14 @@
+*~
+*#
+.DS_Store
+.attach*
+
+.env
+/build
+/dist/
+
+*.swp
+.vscode
+*.idea
+
+shared_ssh_keys
