@@ -1,72 +1,86 @@
-from alpine:latest
+FROM alpine:latest
 
-MAINTAINER Ryan Butler (https://github.com/ryanleonbutler)
+WORKDIR /root
 
-WORKDIR /home/rlb
+RUN apk update;
 
-RUN apk update && \
-    apk add doas && \
-    apk add --no-cache shadow && \
-    rm -f /tmp/* /etc/apk/cache/*;
-
-RUN apk add --no-cache git && \
-    apk add --no-cache openssh && \
-    apk add --no-cache unzip && \
-    apk add --no-cache curl && \
-    apk add --no-cache wget && \
-    apk add --no-cache build-base && \
-    apk add --no-cache cmake && \
-    apk add --no-cache clang && \
-    apk add --no-cache llvm && \
+# Build tools
+RUN apk add --no-cache llvm && \
     apk add --no-cache gcc && \
-    apk add --no-cache fish && \
+    apk add --no-cache clang && \
+    apk add --no-cache cmake && \
+    apk add --no-cache make;
+RUN apk add --no-cache build-base;
+RUN apk add --no-cache bash libffi-dev openssl-dev bzip2-dev zlib-dev xz-dev readline-dev sqlite-dev tk-dev;
+RUN apk add --no-cache python3 py3-pip; # Needed by nodejs to build
+
+# Common tools
+RUN apk add --no-cache curl && \
+    apk add --no-cache wget && \
+    apk add --no-cache unzip && \
+    apk add --no-cache tar && \
+    apk add --no-cache openssh && \
+    apk add --no-cache git;
+
+# Shell and shell tools
+RUN apk add --no-cache fish && \
     apk add --no-cache zoxide && \
     apk add --no-cache fzf && \
     apk add --no-cache exa && \
-    apk add --no-cache starship && \
-    apk add --no-cache neovim && \
-    apk add --no-cache --update python3 py3-pip && \
-    apk add --no-cache --update nodejs npm && \
-    apk add --no-cache --update sqlite-libs sqlite-dev && \
-    apk add --no-cache --update lua lua-dev; 
+    apk add --no-cache pipx && \
+    apk add --no-cache starship;
 
-RUN cd /tmp && \
-    git clone https://github.com/keplerproject/luarocks.git && \
-    cd luarocks && \
-    sh ./configure && \
-    make build install && \
-    cd && \
-    rm -rf /tmp/* /root/.cache/luarocks /etc/apk/cache/*;
+# Update a bunch of tools
+RUN apk add --update --no-cache less
 
-RUN apk add --no-cache --update go && \
-    go env -w GOPROXY=direct
+# Neovim
+RUN apk add --no-cache neovim;
 
-# RUN curl –proto '=https' –tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+# asdf-vm
+RUN git clone https://github.com/asdf-vm/asdf.git ./.asdf --branch v0.14.0
+ENV ASDF_DIR=/root/.asdf
+RUN . "/root/.asdf/asdf.sh" && \
+    asdf plugin-add lua https://github.com/Stratus3D/asdf-lua.git && \
+    asdf plugin-add python && \
+    asdf plugin add nodejs https://github.com/asdf-vm/asdf-nodejs.git && \
+    asdf plugin add golang https://github.com/asdf-community/asdf-golang.git;
+RUN . "/root/.asdf/asdf.sh" && \
+    asdf install lua 5.4.6;
+RUN . "/root/.asdf/asdf.sh" && \
+    asdf install python 3.11.8;
+RUN . "/root/.asdf/asdf.sh" && \
+    asdf nodejs update nodebuild;
+RUN . "/root/.asdf/asdf.sh" && \
+    ASDF_NODEJS_FORCE_COMPILE=1 asdf install nodejs 20.11.1;
+RUN . "/root/.asdf/asdf.sh" && \
+    asdf install golang 1.22.0;
 
+RUN . "/root/.asdf/asdf.sh" && \
+    asdf global lua 5.4.6;
+RUN . "/root/.asdf/asdf.sh" && \
+    asdf global 3.11.8;
+RUN . "/root/.asdf/asdf.sh" && \
+    asdf global nodejs 20.11.1;
+RUN . "/root/.asdf/asdf.sh" && \
+    asdf global golang 1.22.0;
+
+RUN go env -w GOPROXY=direct
+
+# Configs
 COPY ./dotfiles ./.config
 COPY ./dotfiles/.gitconfig .
 COPY ./dotfiles/.gittemplate .
 COPY ./shared_ssh_keys .
+COPY ./.tool-versions .
 
+# Shell setup
 RUN mkdir -p ./.config/fish/completions && \
-     mkdir -p ./.config/fish/conf.d && \
-     mkdir -p ./.config/fish/functions;
+    mkdir -p ./.config/fish/conf.d && \
+    mkdir -p ./.config/fish/functions;
 
-ENV USER=rlb
-ENV GROUP=developers
+# Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-RUN addgroup -S $GROUP && \
-    adduser \
-    --disabled-password \
-    "$USER" \
-    wheel && \
-    echo "permit $USER as root" > /etc/doas.d/doas.conf; \
-    echo "permit nopass :wheel as root" >> /etc/doas.d/doas.config;
-
-RUN chown -R rlb:developers /home/rlb
-
-USER rlb
 ENV SHELL /usr/bin/fish
-RUN chsh -s /usr/bin/fish
 
 ENTRYPOINT ["fish"]
